@@ -1,0 +1,3 @@
+curl -X POST http://localhost:3000/api/message \
+  -H "Content-Type: application/json" \
+  -d '{"username":"your_username","password":"your_password","message":"Hello!"}'

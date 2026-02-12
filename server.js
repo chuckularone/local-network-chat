@@ -10,6 +10,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Middleware to parse JSON
+app.use(express.json());
+
 // Database file path
 const DB_PATH = 'chat.db';
 
@@ -81,6 +84,265 @@ setInterval(() => {
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Parse JSON bodies for API requests
+app.use(express.json({ limit: '10mb' }));
+
+// API endpoint to post a message
+app.post('/api/message', (req, res) => {
+  const { username, password, message } = req.body;
+  
+  if (!username || !password || !message) {
+    return res.status(400).json({ error: 'Missing required fields: username, password, message' });
+  }
+
+  // Verify user credentials
+  try {
+    const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+    
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const user = result[0].values[0];
+    const storedPassword = user[1];
+    
+    // Verify password (async)
+    bcrypt.compare(password, storedPassword).then(isValid => {
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid username or password' });
+      }
+
+      // Save and broadcast message
+      const now = new Date();
+      const messageData = {
+        username,
+        message,
+        timestamp: now.toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        })
+      };
+
+      try {
+        db.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
+          [messageData.username, messageData.message, messageData.timestamp]);
+        hasChanges = true;
+        
+        // Broadcast to all connected clients
+        io.emit('chat message', messageData);
+        
+        res.json({ success: true, message: 'Message posted successfully' });
+      } catch (error) {
+        console.error('Error saving message:', error);
+        res.status(500).json({ error: 'Failed to save message' });
+      }
+    }).catch(err => {
+      console.error('Password comparison error:', err);
+      res.status(500).json({ error: 'Authentication error' });
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API endpoint to post a photo
+app.post('/api/photo', (req, res) => {
+  const { username, password, photo, caption } = req.body;
+  
+  if (!username || !password || !photo) {
+    return res.status(400).json({ error: 'Missing required fields: username, password, photo' });
+  }
+
+  // Verify user credentials
+  try {
+    const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+    
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const user = result[0].values[0];
+    const storedPassword = user[1];
+    
+    // Verify password (async)
+    bcrypt.compare(password, storedPassword).then(isValid => {
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid username or password' });
+      }
+
+      // Save and broadcast photo
+      const now = new Date();
+      const photoData = {
+        username,
+        photo,
+        caption: caption || '',
+        timestamp: now.toLocaleString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        })
+      };
+
+      try {
+        db.run('INSERT INTO photos (username, photo, caption, timestamp) VALUES (?, ?, ?, ?)',
+          [photoData.username, photoData.photo, photoData.caption, photoData.timestamp]);
+        hasChanges = true;
+        
+        // Broadcast to all connected clients
+        io.emit('photo message', photoData);
+        
+        res.json({ success: true, message: 'Photo posted successfully' });
+      } catch (error) {
+        console.error('Error saving photo:', error);
+        res.status(500).json({ error: 'Failed to save photo' });
+      }
+    }).catch(err => {
+      console.error('Password comparison error:', err);
+      res.status(500).json({ error: 'Authentication error' });
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API endpoint to get chat history
+app.get('/api/history', (req, res) => {
+  try {
+    const messagesResult = db.exec(`
+      SELECT 'message' as type, id, username, message as content, NULL as caption, NULL as photo, timestamp, created_at 
+      FROM messages
+      UNION ALL
+      SELECT 'photo' as type, id, username, NULL as content, caption, photo, timestamp, created_at 
+      FROM photos
+      ORDER BY created_at ASC
+      LIMIT 100
+    `);
+    
+    const history = messagesResult.length > 0 
+      ? messagesResult[0].values.map(row => ({
+          type: row[0],
+          id: row[1],
+          username: row[2],
+          message: row[3],
+          caption: row[4],
+          photo: row[5],
+          timestamp: row[6]
+        }))
+      : [];
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// Parse JSON bodies for API requests
+app.use(express.json());
+
+// REST API endpoint for posting messages
+app.post('/api/message', async (req, res) => {
+  const { username, password, message } = req.body;
+
+  // Validate input
+  if (!username || !password || !message) {
+    return res.status(400).json({ 
+      error: 'Missing required fields: username, password, message' 
+    });
+  }
+
+  try {
+    // Verify user credentials
+    const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+    
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const user = result[0].values[0];
+    const storedPassword = user[1];
+    
+    // Verify password
+    const isValid = await bcrypt.compare(password, storedPassword);
+    
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // Create message
+    const now = new Date();
+    const messageData = {
+      username: username,
+      message: message,
+      timestamp: now.toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    };
+
+    // Save to database
+    db.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
+      [messageData.username, messageData.message, messageData.timestamp]);
+    hasChanges = true;
+
+    // Broadcast to all connected clients
+    io.emit('chat message', messageData);
+
+    // Send success response
+    res.json({ 
+      success: true, 
+      message: 'Message posted successfully',
+      data: messageData
+    });
+
+  } catch (error) {
+    console.error('API message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to get chat history
+app.get('/api/history', (req, res) => {
+  try {
+    const messagesResult = db.exec(`
+      SELECT 'message' as type, id, username, message as content, NULL as caption, NULL as photo, timestamp, created_at 
+      FROM messages
+      UNION ALL
+      SELECT 'photo' as type, id, username, NULL as content, caption, photo, timestamp, created_at 
+      FROM photos
+      ORDER BY created_at ASC
+      LIMIT 100
+    `);
+    
+    const history = messagesResult.length > 0 
+      ? messagesResult[0].values.map(row => ({
+          type: row[0],
+          id: row[1],
+          username: row[2],
+          message: row[3],
+          caption: row[4],
+          photo: row[5],
+          timestamp: row[6]
+        }))
+      : [];
+    
+    res.json({ success: true, history });
+  } catch (error) {
+    console.error('API history error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Store connected users and authenticated sockets
 const users = new Map();

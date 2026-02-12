@@ -7,6 +7,7 @@ A feature-rich real-time chat application for communication between machines on 
 - **User accounts** - Register your own username and password
 - **Secure authentication** - Passwords are hashed with bcrypt
 - **"Remain logged in"** - Optional auto-login saves your session in the browser
+- **REST API** - Post messages and photos from command line or scripts
 - **Persistent chat history** - Messages and photos saved in SQLite database
 - **Photo sharing** - Upload and share images with optional captions
 - **Emoji picker** - Express yourself with emojis organized by category
@@ -81,6 +82,48 @@ On **other machines** on the same network:
 - Click the 😊 emoji button to add emojis to your messages
 - Click on any shared photo to view it full-screen
 - Click "Logout" in the top-right to manually log out
+
+## Using the API
+
+The chat includes REST API endpoints for posting messages and photos programmatically.
+
+### Quick Start
+
+**Post a message from command line:**
+```bash
+curl -X POST http://localhost:3000/api/message \
+  -H "Content-Type: application/json" \
+  -d '{"username":"your_username","password":"your_password","message":"Hello from API!"}'
+```
+
+**Post a message from browser console:**
+```javascript
+fetch('http://localhost:3000/api/message', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    username: 'your_username',
+    password: 'your_password',
+    message: 'Hello from browser!'
+  })
+}).then(res => res.json()).then(console.log);
+```
+
+**Using the provided scripts:**
+1. Edit `post-message.sh` or `post-message.py` with your username/password
+2. Bash: `./post-message.sh "Your message"`
+3. Python: `python3 post-message.py "Your message"`
+4. Python (photo): `python3 post-message.py --photo image.jpg "Caption"`
+
+For complete API documentation, see [API.md](API.md)
+
+### Available Endpoints
+
+- `POST /api/message` - Post a text message
+- `POST /api/photo` - Post a photo with optional caption  
+- `GET /api/history` - Get chat history (last 100 items)
+
+All messages posted via API appear in real-time to web users!
 
 ## Configuration
 
@@ -173,12 +216,15 @@ Press `Ctrl+C` in the terminal where the server is running.
 ## File Structure
 ```
 local-network-chat/
-├── server.js           # Node.js server with Socket.IO and SQLite
-├── package.json        # Dependencies list
-├── chat.db             # SQLite database (auto-created)
+├── server.js              # Node.js server with Socket.IO and SQLite
+├── package.json           # Dependencies list
+├── chat.db                # SQLite database (auto-created)
+├── post-message.sh        # Bash script for posting via API
+├── post-message.py        # Python script for posting via API
+├── API.md                 # Complete API documentation
 ├── public/
-│   └── index.html      # Client web interface
-└── README.md           # This file
+│   └── index.html         # Client web interface
+└── README.md              # This file
 ```
 
 ## Support
