@@ -8,7 +8,9 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  maxHttpBufferSize: 10 * 1024 * 1024  // 10MB limit for messages (to handle base64 photos)
+});
 
 // Middleware to parse JSON
 app.use(express.json());

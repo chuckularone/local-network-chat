@@ -516,26 +516,63 @@
 
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                // Check file size (limit to 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('Image too large! Please choose an image under 5MB.');
-                    photoInput.value = '';
-                    return;
-                }
+            if (!file) {
+                return;
+            }
+            
+            console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                photoInput.value = '';
+                return;
+            }
+            
+            // Check file size (limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image too large! Please choose an image under 5MB.');
+                photoInput.value = '';
+                return;
+            }
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const caption = prompt('Add a caption (optional):') || '';
+            const reader = new FileReader();
+            reader.onerror = (error) => {
+                console.error('FileReader error:', error);
+                alert('Error reading file. Please try again.');
+                photoInput.value = '';
+            };
+            
+            reader.onload = (event) => {
+                try {
+                    if (!username) {
+                        console.error('No username set when uploading photo');
+                        alert('Error: Not logged in');
+                        photoInput.value = '';
+                        return;
+                    }
+                    
+                    const caption = prompt('Add a caption (optional):');
+                    
+                    // User cancelled the prompt
+                    if (caption === null) {
+                        photoInput.value = '';
+                        return;
+                    }
+                    
+                    console.log('Emitting photo message for user:', username);
                     socket.emit('photo message', {
                         username,
                         photo: event.target.result,
-                        caption
+                        caption: caption || ''
                     });
                     photoInput.value = '';
-                };
-                reader.readAsDataURL(file);
-            }
+                } catch (error) {
+                    console.error('Error processing photo:', error);
+                    alert('Error uploading photo. Please try again.');
+                    photoInput.value = '';
+                }
+            };
+            reader.readAsDataURL(file);
         });
 
         // Photo preview modal
@@ -695,6 +732,23 @@
             console.log('Auto-login success, joining chat');
             username = usernameVal;
             socket.emit('join', username);
+        });
+
+        // Handle socket errors
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                // Server disconnected us - try to reconnect
+                socket.connect();
+            }
         });
 
         // Load chat history
