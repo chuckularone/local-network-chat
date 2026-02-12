@@ -164,7 +164,7 @@ io.on('connection', (socket) => {
       if (result.length > 0 && result[0].values.length > 0) {
         authenticatedSockets.add(socket.id);
         console.log('Auto-login successful:', username);
-        socket.emit('join', username);
+        socket.emit('auto-login success', username);
       } else {
         console.log('Auto-login failed - user not found:', username);
         socket.emit('auto-login failed');

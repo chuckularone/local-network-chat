@@ -690,6 +690,13 @@
             chatContainer.style.display = 'none';
         });
 
+        // Handle auto-login success
+        socket.on('auto-login success', (usernameVal) => {
+            console.log('Auto-login success, joining chat');
+            username = usernameVal;
+            socket.emit('join', username);
+        });
+
         // Load chat history
         socket.on('chat history', (history) => {
             // Process each item in chronological order
