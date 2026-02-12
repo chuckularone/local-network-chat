@@ -155,6 +155,26 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle auto-login from saved session
+  socket.on('auto-login', (username) => {
+    try {
+      // Verify user exists in database
+      const result = db.exec('SELECT username FROM users WHERE username = ?', [username]);
+      
+      if (result.length > 0 && result[0].values.length > 0) {
+        authenticatedSockets.add(socket.id);
+        console.log('Auto-login successful:', username);
+        socket.emit('join', username);
+      } else {
+        console.log('Auto-login failed - user not found:', username);
+        socket.emit('auto-login failed');
+      }
+    } catch (error) {
+      console.error('Auto-login error:', error);
+      socket.emit('auto-login failed');
+    }
+  });
+
   // Handle user joining (only if authenticated)
   socket.on('join', (username) => {
     if (!authenticatedSockets.has(socket.id)) {

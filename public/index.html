@@ -75,15 +75,33 @@
             color: white;
             padding: 20px;
             border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        #chat-header h2 {
+        #chat-header-left h2 {
             margin-bottom: 5px;
         }
 
         #user-count {
             font-size: 14px;
             opacity: 0.9;
+        }
+
+        #logout-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        #logout-button:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         #messages {
@@ -319,6 +337,12 @@
                 <h2>Login</h2>
                 <input type="text" id="login-username" placeholder="Username" autocomplete="username">
                 <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; font-size: 14px; cursor: pointer;">
+                        <input type="checkbox" id="remember-me" style="width: auto; margin-right: 8px;">
+                        <span>Remain logged in</span>
+                    </label>
+                </div>
                 <button id="login-button">Login</button>
                 <div id="login-error" style="color: red; margin-top: 10px; display: none;"></div>
                 <p style="margin-top: 15px; font-size: 14px;">
@@ -340,8 +364,11 @@
 
     <div id="chat-container">
         <div id="chat-header">
-            <h2>Chat Room</h2>
-            <div id="user-count">Users online: 0</div>
+            <div id="chat-header-left">
+                <h2>Chat Room</h2>
+                <div id="user-count">Users online: 0</div>
+            </div>
+            <button id="logout-button">Logout</button>
         </div>
         <div id="messages"></div>
         <div id="emoji-picker">
@@ -394,6 +421,7 @@
         const loginPassword = document.getElementById('login-password');
         const loginButton = document.getElementById('login-button');
         const loginError = document.getElementById('login-error');
+        const rememberMeCheckbox = document.getElementById('remember-me');
         const registerUsername = document.getElementById('register-username');
         const registerPassword = document.getElementById('register-password');
         const registerButton = document.getElementById('register-button');
@@ -410,6 +438,28 @@
         const photoPreviewModal = document.getElementById('photo-preview-modal');
         const photoPreviewImg = document.getElementById('photo-preview-img');
         const photoPreviewModalClose = document.getElementById('photo-preview-modal-close');
+        const logoutButton = document.getElementById('logout-button');
+
+        // Logout handler
+        logoutButton.addEventListener('click', () => {
+            if (confirm('Are you sure you want to log out?')) {
+                localStorage.removeItem('chatUsername');
+                location.reload();
+            }
+        });
+
+        // Check for saved session on page load
+        const savedUsername = localStorage.getItem('chatUsername');
+        if (savedUsername) {
+            console.log('Found saved session for:', savedUsername);
+            username = savedUsername;
+            loginContainer.style.display = 'none';
+            chatContainer.style.display = 'flex';
+            messageInput.focus();
+            
+            // Mark socket as authenticated and join
+            socket.emit('auto-login', savedUsername);
+        }
 
         // Emoji collections
         const emojis = {
@@ -578,6 +628,14 @@
             console.log('Login successful for:', usernameVal);
             username = usernameVal;
             
+            // Save to localStorage if remember me is checked
+            if (rememberMeCheckbox.checked) {
+                localStorage.setItem('chatUsername', usernameVal);
+                console.log('Saved session to localStorage');
+            } else {
+                localStorage.removeItem('chatUsername');
+            }
+            
             // Remove login event listeners to prevent interference
             loginPassword.removeEventListener('keypress', loginPasswordHandler);
             
@@ -598,6 +656,10 @@
         socket.on('register success', (usernameVal) => {
             username = usernameVal;
             
+            // Auto-save session for new registrations
+            localStorage.setItem('chatUsername', usernameVal);
+            console.log('Saved new user session to localStorage');
+            
             // Remove register event listeners to prevent interference
             registerPassword.removeEventListener('keypress', registerPasswordHandler);
             
@@ -616,7 +678,16 @@
         socket.on('auth required', () => {
             console.error('Authentication required - session may have expired');
             alert('Session expired. Please log in again.');
+            localStorage.removeItem('chatUsername');
             location.reload();
+        });
+
+        // Handle auto-login failure
+        socket.on('auto-login failed', () => {
+            console.log('Auto-login failed - clearing saved session');
+            localStorage.removeItem('chatUsername');
+            loginContainer.style.display = 'block';
+            chatContainer.style.display = 'none';
         });
 
         // Load chat history
