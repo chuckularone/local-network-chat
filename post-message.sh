@@ -5,12 +5,12 @@
 
 # Configuration
 SERVER="http://localhost:3000"
-USERNAME="your_username"
-PASSWORD="your_password"
+USERNAME="UserName"
+PASSWORD="Password"
 
 # Check if message provided
 if [ -z "$1" ]; then
-    echo "Usage: $0 \"Your message here\""
+    echo "Usage: $0 \"Testing the API connection\""
     exit 1
 fi
 
