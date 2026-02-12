@@ -167,20 +167,37 @@ The server will now run on your new port. Update the URL you use to connect acco
 
 ## Database Management
 
-The chat data is stored in `chat.db` file in the same directory as server.js.
+The app uses two separate SQLite database files:
+- **users.db** - Stores user accounts (usernames and hashed passwords)
+- **chat.db** - Stores messages and photos
 
-**To clear all data (users, messages, and photos):**
+Both files are located in the same directory as server.js.
+
+**To clear chat history only (keep users):**
 1. Stop the server (Ctrl+C)
 2. Delete the `chat.db` file
-3. Restart the server - a new empty database will be created
+3. Restart the server - a new empty chat database will be created
+4. All users can still log in with their existing accounts
 
-**To backup everything:**
-- Simply copy the `chat.db` file to a safe location
-- Restore by copying it back and restarting the server
+**To clear user accounts only (keep chat history):**
+1. Stop the server (Ctrl+C)
+2. Delete the `users.db` file
+3. Restart the server - a new empty users database will be created
+4. Chat history remains, but all users will need to re-register
+
+**To clear everything:**
+1. Stop the server (Ctrl+C)
+2. Delete both `users.db` and `chat.db` files
+3. Restart the server - fresh start!
+
+**To backup:**
+- **User accounts**: Copy `users.db` to a safe location
+- **Chat history**: Copy `chat.db` to a safe location
+- **Everything**: Copy both files
 
 **Database contents:**
-- User accounts (usernames and hashed passwords)
-- Last 100 messages and photos combined (you can modify this limit in server.js line 181)
+- **users.db**: User accounts with hashed passwords
+- **chat.db**: Last 100 messages and photos (you can modify this limit in server.js line 349)
 
 **To remove saved auto-login sessions:**
 - Click the Logout button in the chat
@@ -189,9 +206,10 @@ The chat data is stored in `chat.db` file in the same directory as server.js.
 ## Technical Details
 
 ### Stack
-- **server.js**: Node.js server using Express and Socket.IO with SQLite database
+- **server.js**: Node.js server using Express and Socket.IO with SQLite databases
 - **public/index.html**: Web client interface with vanilla JavaScript
-- **chat.db**: SQLite database file (created automatically on first run)
+- **users.db**: SQLite database for user accounts (auto-created on first run)
+- **chat.db**: SQLite database for messages and photos (auto-created on first run)
 - **WebSockets**: Enable real-time bidirectional communication
 - **sql.js**: Pure JavaScript SQLite library (no compilation needed!)
 - **bcryptjs**: Secure password hashing library
@@ -218,7 +236,8 @@ Press `Ctrl+C` in the terminal where the server is running.
 local-network-chat/
 ├── server.js              # Node.js server with Socket.IO and SQLite
 ├── package.json           # Dependencies list
-├── chat.db                # SQLite database (auto-created)
+├── users.db               # User accounts database (auto-created)
+├── chat.db                # Chat history database (auto-created)
 ├── post-message.sh        # Bash script for posting via API
 ├── post-message.py        # Python script for posting via API
 ├── API.md                 # Complete API documentation

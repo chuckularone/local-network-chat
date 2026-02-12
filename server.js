@@ -13,27 +13,29 @@ const io = new Server(server);
 // Middleware to parse JSON
 app.use(express.json());
 
-// Database file path
-const DB_PATH = 'chat.db';
+// Database file paths
+const USERS_DB_PATH = 'users.db';
+const CHAT_DB_PATH = 'chat.db';
 
-// Initialize SQLite database
-let db;
+// Initialize SQLite databases
+let usersDb;
+let chatDb;
 
 async function initDatabase() {
   const SQL = await initSqlJs();
   
-  // Load existing database or create new one
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-    console.log('Loaded existing database');
+  // Load or create users database
+  if (fs.existsSync(USERS_DB_PATH)) {
+    const buffer = fs.readFileSync(USERS_DB_PATH);
+    usersDb = new SQL.Database(buffer);
+    console.log('Loaded existing users database');
   } else {
-    db = new SQL.Database();
-    console.log('Created new database');
+    usersDb = new SQL.Database();
+    console.log('Created new users database');
   }
 
-  // Create tables if they don't exist
-  db.run(`
+  // Create users table
+  usersDb.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -42,7 +44,18 @@ async function initDatabase() {
     );
   `);
 
-  db.run(`
+  // Load or create chat database
+  if (fs.existsSync(CHAT_DB_PATH)) {
+    const buffer = fs.readFileSync(CHAT_DB_PATH);
+    chatDb = new SQL.Database(buffer);
+    console.log('Loaded existing chat database');
+  } else {
+    chatDb = new SQL.Database();
+    console.log('Created new chat database');
+  }
+
+  // Create messages and photos tables
+  chatDb.run(`
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
@@ -52,7 +65,7 @@ async function initDatabase() {
     );
   `);
 
-  db.run(`
+  chatDb.run(`
     CREATE TABLE IF NOT EXISTS photos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
@@ -63,22 +76,30 @@ async function initDatabase() {
     );
   `);
 
-  console.log('Database initialized');
+  console.log('Databases initialized');
 }
 
-// Save database to file
+// Save databases to files
 function saveDatabase() {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  // Save users database
+  const usersData = usersDb.export();
+  const usersBuffer = Buffer.from(usersData);
+  fs.writeFileSync(USERS_DB_PATH, usersBuffer);
+  
+  // Save chat database
+  const chatData = chatDb.export();
+  const chatBuffer = Buffer.from(chatData);
+  fs.writeFileSync(CHAT_DB_PATH, chatBuffer);
 }
 
 // Auto-save every 5 seconds if there are changes
-let hasChanges = false;
+let hasUsersChanges = false;
+let hasChatChanges = false;
 setInterval(() => {
-  if (hasChanges) {
+  if (hasUsersChanges || hasChatChanges) {
     saveDatabase();
-    hasChanges = false;
+    hasUsersChanges = false;
+    hasChatChanges = false;
   }
 }, 5000);
 
@@ -98,7 +119,7 @@ app.post('/api/message', (req, res) => {
 
   // Verify user credentials
   try {
-    const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+    const result = usersDb.exec('SELECT username, password FROM users WHERE username = ?', [username]);
     
     if (result.length === 0 || result[0].values.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -128,9 +149,9 @@ app.post('/api/message', (req, res) => {
       };
 
       try {
-        db.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
+        chatDb.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
           [messageData.username, messageData.message, messageData.timestamp]);
-        hasChanges = true;
+        hasChatChanges = true;
         
         // Broadcast to all connected clients
         io.emit('chat message', messageData);
@@ -160,7 +181,7 @@ app.post('/api/photo', (req, res) => {
 
   // Verify user credentials
   try {
-    const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+    const result = usersDb.exec('SELECT username, password FROM users WHERE username = ?', [username]);
     
     if (result.length === 0 || result[0].values.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
@@ -191,9 +212,9 @@ app.post('/api/photo', (req, res) => {
       };
 
       try {
-        db.run('INSERT INTO photos (username, photo, caption, timestamp) VALUES (?, ?, ?, ?)',
+        chatDb.run('INSERT INTO photos (username, photo, caption, timestamp) VALUES (?, ?, ?, ?)',
           [photoData.username, photoData.photo, photoData.caption, photoData.timestamp]);
-        hasChanges = true;
+        hasChatChanges = true;
         
         // Broadcast to all connected clients
         io.emit('photo message', photoData);
@@ -216,7 +237,7 @@ app.post('/api/photo', (req, res) => {
 // API endpoint to get chat history
 app.get('/api/history', (req, res) => {
   try {
-    const messagesResult = db.exec(`
+    const messagesResult = chatDb.exec(`
       SELECT 'message' as type, id, username, message as content, NULL as caption, NULL as photo, timestamp, created_at 
       FROM messages
       UNION ALL
@@ -363,7 +384,7 @@ io.on('connection', (socket) => {
 
     try {
       // Check if username already exists
-      const checkUser = db.exec('SELECT username FROM users WHERE username = ?', [username]);
+      const checkUser = usersDb.exec('SELECT username FROM users WHERE username = ?', [username]);
       if (checkUser.length > 0 && checkUser[0].values.length > 0) {
         socket.emit('register failed', 'Username already taken');
         return;
@@ -373,8 +394,8 @@ io.on('connection', (socket) => {
       const hashedPassword = await bcrypt.hash(password, 10);
       
       // Insert new user
-      db.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
-      hasChanges = true;
+      usersDb.run('INSERT INTO users (username, password) VALUES (?, ?)', [username, hashedPassword]);
+      hasUsersChanges = true;
       
       authenticatedSockets.add(socket.id);
       socket.emit('register success', username);
@@ -391,7 +412,7 @@ io.on('connection', (socket) => {
     
     try {
       // Get user from database
-      const result = db.exec('SELECT username, password FROM users WHERE username = ?', [username]);
+      const result = usersDb.exec('SELECT username, password FROM users WHERE username = ?', [username]);
       
       if (result.length === 0 || result[0].values.length === 0) {
         socket.emit('login failed', 'Invalid username or password');
@@ -421,7 +442,7 @@ io.on('connection', (socket) => {
   socket.on('auto-login', (username) => {
     try {
       // Verify user exists in database
-      const result = db.exec('SELECT username FROM users WHERE username = ?', [username]);
+      const result = usersDb.exec('SELECT username FROM users WHERE username = ?', [username]);
       
       if (result.length > 0 && result[0].values.length > 0) {
         authenticatedSockets.add(socket.id);
@@ -454,7 +475,7 @@ io.on('connection', (socket) => {
     // Send chat history to the newly joined user
     try {
       // Get messages with a type indicator
-      const messagesResult = db.exec(`
+      const messagesResult = chatDb.exec(`
         SELECT 'message' as type, id, username, message as content, NULL as caption, NULL as photo, timestamp, created_at 
         FROM messages
         UNION ALL
@@ -504,9 +525,9 @@ io.on('connection', (socket) => {
 
     // Save to database
     try {
-      db.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
+      chatDb.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
         [messageData.username, messageData.message, messageData.timestamp]);
-      hasChanges = true;
+      hasChatChanges = true;
     } catch (error) {
       console.error('Error saving message:', error);
     }
@@ -537,9 +558,9 @@ io.on('connection', (socket) => {
 
     // Save to database
     try {
-      db.run('INSERT INTO photos (username, photo, caption, timestamp) VALUES (?, ?, ?, ?)',
+      chatDb.run('INSERT INTO photos (username, photo, caption, timestamp) VALUES (?, ?, ?, ?)',
         [photoData.username, photoData.photo, photoData.caption, photoData.timestamp]);
-      hasChanges = true;
+      hasChatChanges = true;
     } catch (error) {
       console.error('Error saving photo:', error);
     }
