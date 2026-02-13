@@ -89,6 +89,27 @@
             opacity: 0.9;
         }
 
+        #chat-header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #chime-toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        #chime-toggle {
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+        }
+
         #logout-button {
             background: rgba(255, 255, 255, 0.2);
             color: white;
@@ -368,7 +389,13 @@
                 <h2>Chat Room</h2>
                 <div id="user-count">Users online: 0</div>
             </div>
-            <button id="logout-button">Logout</button>
+            <div id="chat-header-right">
+                <label id="chime-toggle-label">
+                    <input type="checkbox" id="chime-toggle" checked>
+                    <span>🔔 Sound</span>
+                </label>
+                <button id="logout-button">Logout</button>
+            </div>
         </div>
         <div id="messages"></div>
         <div id="emoji-picker">
@@ -448,6 +475,15 @@
             }
         });
 
+        // Function to play notification chime
+        function playChime() {
+            if (chimeToggle.checked) {
+                chimeAudio.play().catch(err => {
+                    console.log('Could not play chime:', err);
+                });
+            }
+        }
+
         // Check for saved session on page load
         const savedUsername = localStorage.getItem('chatUsername');
         if (savedUsername) {
@@ -463,11 +499,11 @@
 
         // Emoji collections
         const emojis = {
-            smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴'],
+            smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '☠', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴'],
             gestures: ['👋', '🤚', '🖐', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏'],
             hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
-            objects: ['⭐', '🌟', '✨', '⚡', '🔥', '💥', '💫', '💦', '💨', '🎉', '🎊', '🎈', '🎁', '🏆', '🥇', '🥈', '🥉', '⚽', '🏀', '🎮', '🎯', '🎲', '🎸', '🎵', '🎶', '📱', '💻', '⌚', '📷', '🎥', '☕', '🍕', '🍔', '🍟', '🌮', '🍦', '🍰', '🎂']
-        };
+            objects: ['⭐', '💯', '🌟', '✨', '⚡', '🔥', '💥', '💫', '💦', '💨', '🎉', '🎊', '🎈', '🎁', '🏆', '🔫', '🥇', '🥈', '🥉', '⚽', '🏀', '🎮', '🎯', '🎲', '🎸', '🎵', '🎶', '📱', '💻', '⌚', '📷', '🎥', '☕', '🍕', '🍔', '🍟', '🌮', '🍦', '🍰', '🎂','🗡️','⚔️','💣','🔧','🧪','🧫','🔬','💉','🩹','🩺','🛏️','🛋️','🚽','🕛','🕧','🕐','🕜','🕑','🕝','🕒','🕞','🕓','🕟','🕔','🕠','🕕','🕡','🕖','🕢','🕗','🕣','🕘','🕤','🕙','🕥','🕚','🕦']
+		};
 
         // Populate emoji picker
         function populateEmojis() {
@@ -833,6 +869,11 @@
             `;
             messagesDiv.appendChild(messageEl);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Play chime for new messages (but not from yourself)
+            if (data.username !== username) {
+                playChime();
+            }
         });
 
         // Receive photo messages
@@ -864,6 +905,11 @@
             
             messagesDiv.appendChild(messageEl);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Play chime for new photos (but not from yourself)
+            if (data.username !== username) {
+                playChime();
+            }
         });
 
         // User joined
