@@ -16,6 +16,7 @@ Thumbs.db
 
 # Directories
 archive/
+public/saved/
 
 #Notes
 portChangeSteps.txt

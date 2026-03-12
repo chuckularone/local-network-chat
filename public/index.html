@@ -348,6 +348,45 @@
             background: #f0f0f0;
             transform: scale(1.2);
         }
+
+        .message-actions {
+            display: none;
+            gap: 5px;
+            margin-left: 8px;
+        }
+
+        .message:hover .message-actions {
+            display: flex;
+        }
+
+        .message-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            opacity: 0.6;
+            transition: opacity 0.2s, background 0.2s;
+            line-height: 1;
+        }
+
+        .message-actions button:hover {
+            opacity: 1;
+            background: #f0f0f0;
+        }
+
+        .message-header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .edited-label {
+            font-size: 11px;
+            color: #bbb;
+            margin-left: 6px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -792,17 +831,7 @@
             // Process each item in chronological order
             history.forEach(item => {
                 if (item.type === 'message') {
-                    // Display text message
-                    const messageEl = document.createElement('div');
-                    messageEl.className = 'message';
-                    messageEl.innerHTML = `
-                        <div class="message-header">
-                            <span class="username">${escapeHtml(item.username)}</span>
-                            <span class="timestamp">${item.timestamp}</span>
-                        </div>
-                        <div class="message-text">${escapeHtml(item.message)}</div>
-                    `;
-                    messagesDiv.appendChild(messageEl);
+                    messagesDiv.appendChild(createMessageEl(item));
                 } else if (item.type === 'photo') {
                     // Display photo
                     const messageEl = document.createElement('div');
@@ -858,16 +887,7 @@
 
         // Receive messages
         socket.on('chat message', (data) => {
-            const messageEl = document.createElement('div');
-            messageEl.className = 'message';
-            messageEl.innerHTML = `
-                <div class="message-header">
-                    <span class="username">${escapeHtml(data.username)}</span>
-                    <span class="timestamp">${data.timestamp}</span>
-                </div>
-                <div class="message-text">${escapeHtml(data.message)}</div>
-            `;
-            messagesDiv.appendChild(messageEl);
+            messagesDiv.appendChild(createMessageEl(data));
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             
             // Play chime for new messages (but not from yourself)
@@ -938,6 +958,77 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Create a message DOM element, with edit/delete actions for own messages
+        function createMessageEl(data) {
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message';
+            if (data.id) {
+                messageEl.dataset.id = data.id;
+                messageEl.dataset.username = data.username;
+            }
+
+            const isOwn = data.username === username;
+            const actionsHtml = isOwn ? `
+                <div class="message-actions">
+                    <button class="edit-btn" title="Edit">✏️</button>
+                    <button class="delete-btn" title="Delete">🗑️</button>
+                </div>` : '';
+
+            messageEl.innerHTML = `
+                <div class="message-header">
+                    <span class="username">${escapeHtml(data.username)}</span>
+                    <div class="message-header-right">
+                        <span class="timestamp">${data.timestamp}</span>
+                        ${actionsHtml}
+                    </div>
+                </div>
+                <div class="message-text">${escapeHtml(data.message)}</div>
+            `;
+
+            if (isOwn && data.id) {
+                messageEl.querySelector('.edit-btn').addEventListener('click', () => handleEditMessage(data.id, messageEl));
+                messageEl.querySelector('.delete-btn').addEventListener('click', () => handleDeleteMessage(data.id, messageEl));
+            }
+
+            return messageEl;
+        }
+
+        function handleEditMessage(id, messageEl) {
+            const currentText = messageEl.querySelector('.message-text').textContent;
+            const newText = prompt('Edit your message:', currentText);
+            if (newText === null || newText.trim() === '' || newText.trim() === currentText) return;
+            socket.emit('edit message', { id, newMessage: newText.trim() });
+        }
+
+        function handleDeleteMessage(id, messageEl) {
+            if (!confirm('Delete this message?')) return;
+            socket.emit('delete message', { id });
+        }
+
+        // Handle edit/delete confirmations from server
+        socket.on('message edited', (data) => {
+            const el = document.querySelector(`.message[data-id="${data.id}"]`);
+            if (el) {
+                el.querySelector('.message-text').textContent = data.newMessage;
+                // Add or update "(edited)" label
+                let editedLabel = el.querySelector('.edited-label');
+                if (!editedLabel) {
+                    editedLabel = document.createElement('span');
+                    editedLabel.className = 'edited-label';
+                    editedLabel.textContent = '(edited)';
+                    el.querySelector('.timestamp').after(editedLabel);
+                }
+            }
+        });
+
+        socket.on('message deleted', (data) => {
+            const el = document.querySelector(`.message[data-id="${data.id}"]`);
+            if (el) el.remove();
+        });
+
+        socket.on('edit failed', (msg) => alert('Edit failed: ' + msg));
+        socket.on('delete failed', (msg) => alert('Delete failed: ' + msg));
     </script>
 </body>
 </html>

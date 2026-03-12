@@ -5,8 +5,8 @@
 
 # Configuration
 SERVER="http://localhost:3000"
-USERNAME="UserName"
-PASSWORD="Password"
+USERNAME="4801"
+PASSWORD="WEox66IM!"
 
 # Check if message provided
 if [ -z "$1" ]; then

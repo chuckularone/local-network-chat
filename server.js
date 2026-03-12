@@ -530,6 +530,9 @@ io.on('connection', (socket) => {
       chatDb.run('INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)', 
         [messageData.username, messageData.message, messageData.timestamp]);
       hasChatChanges = true;
+      // Get the inserted row id
+      const idResult = chatDb.exec('SELECT last_insert_rowid()');
+      messageData.id = idResult[0].values[0][0];
     } catch (error) {
       console.error('Error saving message:', error);
     }
@@ -568,6 +571,82 @@ io.on('connection', (socket) => {
     }
     
     io.emit('photo message', photoData);
+  });
+
+  // Handle message edit (only if authenticated, only own messages)
+  socket.on('edit message', (data) => {
+    if (!authenticatedSockets.has(socket.id)) {
+      socket.emit('auth required');
+      return;
+    }
+
+    const { id, newMessage } = data;
+    const socketUsername = users.get(socket.id);
+
+    if (!id || !newMessage || !newMessage.trim()) {
+      socket.emit('edit failed', 'Invalid edit request');
+      return;
+    }
+
+    try {
+      // Verify ownership
+      const result = chatDb.exec('SELECT username FROM messages WHERE id = ?', [id]);
+      if (result.length === 0 || result[0].values.length === 0) {
+        socket.emit('edit failed', 'Message not found');
+        return;
+      }
+      const owner = result[0].values[0][0];
+      if (owner !== socketUsername) {
+        socket.emit('edit failed', 'You can only edit your own messages');
+        return;
+      }
+
+      chatDb.run('UPDATE messages SET message = ? WHERE id = ?', [newMessage.trim(), id]);
+      hasChatChanges = true;
+
+      io.emit('message edited', { id, newMessage: newMessage.trim() });
+    } catch (error) {
+      console.error('Error editing message:', error);
+      socket.emit('edit failed', 'Failed to edit message');
+    }
+  });
+
+  // Handle message delete (only if authenticated, only own messages)
+  socket.on('delete message', (data) => {
+    if (!authenticatedSockets.has(socket.id)) {
+      socket.emit('auth required');
+      return;
+    }
+
+    const { id } = data;
+    const socketUsername = users.get(socket.id);
+
+    if (!id) {
+      socket.emit('delete failed', 'Invalid delete request');
+      return;
+    }
+
+    try {
+      // Verify ownership
+      const result = chatDb.exec('SELECT username FROM messages WHERE id = ?', [id]);
+      if (result.length === 0 || result[0].values.length === 0) {
+        socket.emit('delete failed', 'Message not found');
+        return;
+      }
+      const owner = result[0].values[0][0];
+      if (owner !== socketUsername) {
+        socket.emit('delete failed', 'You can only delete your own messages');
+        return;
+      }
+
+      chatDb.run('DELETE FROM messages WHERE id = ?', [id]);
+      hasChatChanges = true;
+
+      io.emit('message deleted', { id });
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      socket.emit('delete failed', 'Failed to delete message');
+    }
   });
 
   // Handle user disconnect
