@@ -6,16 +6,19 @@ A feature-rich real-time chat application for communication between machines on 
 
 - **User accounts** - Register your own username and password
 - **Secure authentication** - Passwords are hashed with bcrypt
+- **Change password** - Update your password at any time from the menu
 - **"Remain logged in"** - Optional auto-login saves your session in the browser
 - **REST API** - Post messages and photos from command line or scripts
 - **Persistent chat history** - Messages and photos saved in SQLite database
 - **Photo sharing** - Upload and share images with optional captions
 - **Emoji picker** - Express yourself with emojis organized by category
 - **Real-time messaging** - Instant message delivery using WebSockets
+- **Edit messages** - Edit your own messages after sending
+- **Delete messages** - Delete your own messages
 - **Multiple users** - Connect simultaneously from different devices
 - **User presence** - Shows when users join/leave and current user count
 - **Timestamps** - Every message shows date and time
-- **Logout option** - Manual logout button in chat header
+- **Hamburger menu** - Sound toggle, Change Password, and Logout in one tidy menu
 - **Clean interface** - Modern, responsive design works on any device
 
 ## How It Works
@@ -81,7 +84,11 @@ On **other machines** on the same network:
 - Click the 📷 camera button to upload and share photos
 - Click the 😊 emoji button to add emojis to your messages
 - Click on any shared photo to view it full-screen
-- Click "Logout" in the top-right to manually log out
+- Hover over your own messages to reveal ✏️ Edit and 🗑️ Delete buttons
+- Click the ☰ hamburger menu (top-right) to access:
+  - **Sound** - Toggle notification sounds on/off (✓ shows when enabled)
+  - **Change Password** - Update your account password
+  - **Logout** - Sign out of the chat
 
 ## Using the API
 
@@ -132,7 +139,7 @@ All messages posted via API appear in real-time to web users!
 If port 3000 is already in use or you want to use a different port:
 
 1. Open `server.js`
-2. Find line 274 (near the bottom):
+2. Find the line near the bottom:
    ```javascript
    const PORT = 3000;
    ```
@@ -197,7 +204,7 @@ Both files are located in the same directory as server.js.
 
 **Database contents:**
 - **users.db**: User accounts with hashed passwords
-- **chat.db**: Last 100 messages and photos (you can modify this limit in server.js line 349)
+- **chat.db**: Last 100 messages and photos (you can modify this limit in server.js by changing the `LIMIT 100` value in the history queries)
 
 **To remove saved auto-login sessions:**
 - Click the Logout button in the chat
