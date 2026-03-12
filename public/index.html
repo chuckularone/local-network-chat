@@ -92,37 +92,96 @@
         #chat-header-right {
             display: flex;
             align-items: center;
-            gap: 15px;
+            position: relative;
         }
 
-        #chime-toggle-label {
+        #hamburger-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            padding: 8px 10px;
+            font-size: 18px;
+            line-height: 1;
+            transition: background 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #hamburger-button:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .hamburger-bar {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: white;
+            border-radius: 2px;
+        }
+
+        #hamburger-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+            min-width: 180px;
+            z-index: 2000;
+            overflow: hidden;
+        }
+
+        #hamburger-menu.show {
+            display: block;
+        }
+
+        .menu-item {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 12px;
+            width: 100%;
+            padding: 13px 18px;
+            background: none;
+            border: none;
+            color: #333;
+            font-size: 15px;
             cursor: pointer;
+            text-align: left;
+            transition: background 0.15s;
+            box-sizing: border-box;
+        }
+
+        .menu-item:hover {
+            background: #f4f4f4;
+        }
+
+        .menu-item + .menu-item {
+            border-top: 1px solid #eee;
+        }
+
+        .menu-item-icon {
+            font-size: 17px;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .menu-item-label {
+            flex: 1;
+        }
+
+        .menu-item-check {
             font-size: 14px;
-            user-select: none;
-        }
-
-        #chime-toggle {
-            cursor: pointer;
-            width: auto;
-            margin: 0;
-        }
-
-        #logout-button {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-
-        #logout-button:hover {
-            background: rgba(255, 255, 255, 0.3);
+            color: #667eea;
+            width: 16px;
+            text-align: right;
+            flex-shrink: 0;
         }
 
         #messages {
@@ -387,6 +446,98 @@
             margin-left: 6px;
             font-style: italic;
         }
+
+        #change-password-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #change-password-modal.show {
+            display: flex;
+        }
+
+        #change-password-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 360px;
+        }
+
+        #change-password-box h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        #change-password-box input {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        #change-password-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .change-password-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .change-password-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #change-password-submit {
+            background: #667eea;
+            color: white;
+        }
+
+        #change-password-submit:hover {
+            background: #5568d3;
+        }
+
+        #change-password-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        #change-password-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        #change-password-error {
+            color: #e53e3e;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        #change-password-success {
+            color: #38a169;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -429,11 +580,26 @@
                 <div id="user-count">Users online: 0</div>
             </div>
             <div id="chat-header-right">
-                <label id="chime-toggle-label">
-                    <input type="checkbox" id="chime-toggle" checked>
-                    <span>🔔 Sound</span>
-                </label>
-                <button id="logout-button">Logout</button>
+                <button id="hamburger-button" title="Menu">
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                    <span class="hamburger-bar"></span>
+                </button>
+                <div id="hamburger-menu">
+                    <button class="menu-item" id="menu-sound-toggle">
+                        <span class="menu-item-icon" id="menu-sound-icon">🔔</span>
+                        <span class="menu-item-label">Sound</span>
+                        <span class="menu-item-check" id="menu-sound-check">✓</span>
+                    </button>
+                    <button class="menu-item" id="menu-password-button">
+                        <span class="menu-item-icon">🔑</span>
+                        <span class="menu-item-label">Change Password</span>
+                    </button>
+                    <button class="menu-item" id="menu-logout-button">
+                        <span class="menu-item-icon">🚪</span>
+                        <span class="menu-item-label">Logout</span>
+                    </button>
+                </div>
             </div>
         </div>
         <div id="messages"></div>
@@ -462,6 +628,21 @@
             <button type="button" id="emoji-button">😊</button>
             <button type="submit" id="send-button">Send</button>
         </form>
+    </div>
+
+    <div id="change-password-modal">
+        <div id="change-password-box">
+            <h3>🔑 Change Password</h3>
+            <div id="change-password-error"></div>
+            <div id="change-password-success"></div>
+            <input type="password" id="cp-current" placeholder="Current password" autocomplete="current-password">
+            <input type="password" id="cp-new" placeholder="New password (6+ characters)" autocomplete="new-password">
+            <input type="password" id="cp-confirm" placeholder="Confirm new password" autocomplete="new-password">
+            <div class="change-password-buttons">
+                <button id="change-password-submit">Change Password</button>
+                <button id="change-password-cancel">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <div id="photo-preview-modal">
@@ -504,19 +685,140 @@
         const photoPreviewModal = document.getElementById('photo-preview-modal');
         const photoPreviewImg = document.getElementById('photo-preview-img');
         const photoPreviewModalClose = document.getElementById('photo-preview-modal-close');
-        const logoutButton = document.getElementById('logout-button');
+        const hamburgerButton = document.getElementById('hamburger-button');
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const menuSoundToggle = document.getElementById('menu-sound-toggle');
+        const menuPasswordButton = document.getElementById('menu-password-button');
+        const menuLogoutButton = document.getElementById('menu-logout-button');
+
+        // Sound state (on by default)
+        let soundEnabled = true;
+
+        // Hamburger toggle
+        hamburgerButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hamburgerMenu.classList.toggle('show');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!hamburgerMenu.contains(e.target) && e.target !== hamburgerButton) {
+                hamburgerMenu.classList.remove('show');
+            }
+        });
+
+        // Sound toggle menu item
+        menuSoundToggle.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('menu-sound-icon').textContent = soundEnabled ? '🔔' : '🔕';
+            document.getElementById('menu-sound-check').textContent = soundEnabled ? '✓' : '';
+            hamburgerMenu.classList.remove('show');
+        });
 
         // Logout handler
-        logoutButton.addEventListener('click', () => {
+        menuLogoutButton.addEventListener('click', () => {
+            hamburgerMenu.classList.remove('show');
             if (confirm('Are you sure you want to log out?')) {
                 localStorage.removeItem('chatUsername');
                 location.reload();
             }
         });
 
+        // Change password
+        const changePasswordModal = document.getElementById('change-password-modal');
+        const changePasswordSubmit = document.getElementById('change-password-submit');
+        const changePasswordCancel = document.getElementById('change-password-cancel');
+        const cpCurrent = document.getElementById('cp-current');
+        const cpNew = document.getElementById('cp-new');
+        const cpConfirm = document.getElementById('cp-confirm');
+        const cpError = document.getElementById('change-password-error');
+        const cpSuccess = document.getElementById('change-password-success');
+
+        function openChangePasswordModal() {
+            cpCurrent.value = '';
+            cpNew.value = '';
+            cpConfirm.value = '';
+            cpError.style.display = 'none';
+            cpSuccess.style.display = 'none';
+            changePasswordModal.classList.add('show');
+            cpCurrent.focus();
+        }
+
+        function closeChangePasswordModal() {
+            changePasswordModal.classList.remove('show');
+        }
+
+        function showCpError(msg) {
+            cpError.textContent = msg;
+            cpError.style.display = 'block';
+            cpSuccess.style.display = 'none';
+        }
+
+        menuPasswordButton.addEventListener('click', () => {
+            hamburgerMenu.classList.remove('show');
+            openChangePasswordModal();
+        });
+        changePasswordCancel.addEventListener('click', closeChangePasswordModal);
+
+        changePasswordModal.addEventListener('click', (e) => {
+            if (e.target === changePasswordModal) closeChangePasswordModal();
+        });
+
+        // Submit on Enter in confirm field
+        cpConfirm.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitChangePassword();
+        });
+
+        changePasswordSubmit.addEventListener('click', submitChangePassword);
+
+        function submitChangePassword() {
+            const current = cpCurrent.value;
+            const newPw = cpNew.value;
+            const confirm = cpConfirm.value;
+
+            if (!current || !newPw || !confirm) {
+                showCpError('Please fill in all fields');
+                return;
+            }
+            if (newPw.length < 6) {
+                showCpError('New password must be at least 6 characters');
+                return;
+            }
+            if (newPw !== confirm) {
+                showCpError('New passwords do not match');
+                return;
+            }
+            if (current === newPw) {
+                showCpError('New password must be different from current password');
+                return;
+            }
+
+            changePasswordSubmit.disabled = true;
+            changePasswordSubmit.textContent = 'Changing...';
+            socket.emit('change password', { currentPassword: current, newPassword: newPw });
+        }
+
+        socket.on('change password success', () => {
+            changePasswordSubmit.disabled = false;
+            changePasswordSubmit.textContent = 'Change Password';
+            cpError.style.display = 'none';
+            cpSuccess.textContent = 'Password changed successfully!';
+            cpSuccess.style.display = 'block';
+            cpCurrent.value = '';
+            cpNew.value = '';
+            cpConfirm.value = '';
+            setTimeout(closeChangePasswordModal, 1500);
+        });
+
+        socket.on('change password failed', (msg) => {
+            changePasswordSubmit.disabled = false;
+            changePasswordSubmit.textContent = 'Change Password';
+            showCpError(msg);
+        });
+
         // Function to play notification chime
         function playChime() {
-            if (chimeToggle.checked) {
+            if (soundEnabled) {
                 chimeAudio.play().catch(err => {
                     console.log('Could not play chime:', err);
                 });

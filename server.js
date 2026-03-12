@@ -400,6 +400,7 @@ io.on('connection', (socket) => {
       hasUsersChanges = true;
       
       authenticatedSockets.add(socket.id);
+      socket.data.username = username;
       socket.emit('register success', username);
       console.log('User registered:', username);
     } catch (error) {
@@ -429,6 +430,7 @@ io.on('connection', (socket) => {
       
       if (isValid) {
         authenticatedSockets.add(socket.id);
+        socket.data.username = username;
         socket.emit('login success', username);
         console.log('User logged in:', username);
       } else {
@@ -448,6 +450,7 @@ io.on('connection', (socket) => {
       
       if (result.length > 0 && result[0].values.length > 0) {
         authenticatedSockets.add(socket.id);
+        socket.data.username = username;
         console.log('Auto-login successful:', username);
         socket.emit('auto-login success', username);
       } else {
@@ -573,6 +576,53 @@ io.on('connection', (socket) => {
     io.emit('photo message', photoData);
   });
 
+  // Handle password change (only if authenticated)
+  socket.on('change password', async (data) => {
+    if (!authenticatedSockets.has(socket.id)) {
+      socket.emit('auth required');
+      return;
+    }
+
+    const { currentPassword, newPassword } = data;
+    const socketUsername = socket.data.username;
+
+    if (!currentPassword || !newPassword) {
+      socket.emit('change password failed', 'Missing required fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      socket.emit('change password failed', 'New password must be at least 6 characters');
+      return;
+    }
+
+    try {
+      const result = usersDb.exec('SELECT password FROM users WHERE username = ?', [socketUsername]);
+      if (result.length === 0 || result[0].values.length === 0) {
+        socket.emit('change password failed', 'User not found');
+        return;
+      }
+
+      const storedPassword = result[0].values[0][0];
+      const isValid = await bcrypt.compare(currentPassword, storedPassword);
+
+      if (!isValid) {
+        socket.emit('change password failed', 'Current password is incorrect');
+        return;
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      usersDb.run('UPDATE users SET password = ? WHERE username = ?', [hashedPassword, socketUsername]);
+      hasUsersChanges = true;
+
+      socket.emit('change password success');
+      console.log('Password changed for:', socketUsername);
+    } catch (error) {
+      console.error('Change password error:', error);
+      socket.emit('change password failed', 'Failed to change password');
+    }
+  });
+
   // Handle message edit (only if authenticated, only own messages)
   socket.on('edit message', (data) => {
     if (!authenticatedSockets.has(socket.id)) {
@@ -581,7 +631,7 @@ io.on('connection', (socket) => {
     }
 
     const { id, newMessage } = data;
-    const socketUsername = users.get(socket.id);
+    const socketUsername = socket.data.username || users.get(socket.id);
 
     if (!id || !newMessage || !newMessage.trim()) {
       socket.emit('edit failed', 'Invalid edit request');
@@ -619,7 +669,7 @@ io.on('connection', (socket) => {
     }
 
     const { id } = data;
-    const socketUsername = users.get(socket.id);
+    const socketUsername = socket.data.username || users.get(socket.id);
 
     if (!id) {
       socket.emit('delete failed', 'Invalid delete request');
